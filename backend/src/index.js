@@ -1,17 +1,18 @@
 import express from "express";
+import cors from "cors";
 import "dotenv/config";
+import {clerkMiddleware} from "@clerk/express";
 import User from "./models/user.model.js";
 import { connectDB } from "./lib/db.js";
-import {clerkMiddleware} from "@clerk/express";
 
 
 const app = express();
-
 const PORT = process.env.PORT;
+const FRONTEND_URL = process.env.FRONTEND_URL;
 
-app.use(express.json());
-
-app.use(clerkMiddleware());
+app.use(express.json());  //middleware for parsing JSON request bodies
+app.use(cors({origin:FRONTEND_UR, credentials: true}));  //middleware
+app.use(clerkMiddleware());  //middleware for Clerk authentication
 
 
 app.get("/health", async (req, res) => {
