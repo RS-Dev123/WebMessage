@@ -4,7 +4,6 @@ import "dotenv/config";
 import fs from "fs"; //file system module for reading files
 import path from "path"; //module for working with file and directory paths
 import {clerkMiddleware} from "@clerk/express";
-import User from "./models/user.model.js";
 import { connectDB } from "./lib/db.js";
 import job from "./lib/cron.js";
 
@@ -12,7 +11,9 @@ const app = express();
 const PORT = process.env.PORT;
 const FRONTEND_URL = process.env.FRONTEND_URL;
 
+//It' important that you don't parse the webhook event data, it should ve in raw format.
 const publicDir = path.join(process.cwd(), "public"); //get the absolute path to the public directory
+app.use("/api/webhook", express.raw({type: "application/json"}),clerkWebhook);  //middleware for parsing raw request bodies for webhook endpoint
 
 app.use(express.json());  //middleware for parsing JSON request bodies
 app.use(cors({origin:FRONTEND_URL, credentials: true}));  //middleware
