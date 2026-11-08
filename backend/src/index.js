@@ -11,7 +11,7 @@ const PORT = process.env.PORT;
 const FRONTEND_URL = process.env.FRONTEND_URL;
 
 app.use(express.json());  //middleware for parsing JSON request bodies
-app.use(cors({origin:FRONTEND_UR, credentials: true}));  //middleware
+app.use(cors({origin:FRONTEND_URL, credentials: true}));  //middleware
 app.use(clerkMiddleware());  //middleware for Clerk authentication
 
 
