@@ -6,7 +6,7 @@ import path from "path"; //module for working with file and directory paths
 import {clerkMiddleware} from "@clerk/express";
 import User from "./models/user.model.js";
 import { connectDB } from "./lib/db.js";
-
+import job from "./lib/cron.js";
 
 const app = express();
 const PORT = process.env.PORT;
