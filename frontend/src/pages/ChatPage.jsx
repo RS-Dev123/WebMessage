@@ -12,16 +12,16 @@ function ChatPage() {
 
   const getConversations = useChatStore((state) => state.getConversations);
   const getMessages = useChatStore((state) => state.getMessages);
-  const getUsers = useChatStore((state) => state.getUsers);
+  const getFollowRequests = useChatStore((state) => state.getFollowRequests);
   const subscribeToMessages = useChatStore((state) => state.subscribeToMessages);
   const unsubscribeFromMessages = useChatStore((state) => state.unsubscribeFromMessages);
 
   const { activeConversation, activeConversationId, isLargeScreen } = useSelectedConversation();
 
   useEffect(() => {
-    getUsers();
     getConversations();
-  }, [getConversations, getUsers]);
+    getFollowRequests();
+  }, [getConversations, getFollowRequests]);
 
   useEffect(() => {
     if (!activeConversationId) return;

@@ -1,5 +1,6 @@
-import { getAuth } from "@clerk/express";
+import { clerkClient, getAuth } from "@clerk/express";
 import User from "../models/user.model.js";
+import { getClerkUserProfile } from "../lib/clerk-user.js";
 
 export async function protectRoute(req, res, next) {
   try {
@@ -10,11 +11,17 @@ export async function protectRoute(req, res, next) {
       return;
     }
 
-    const user = await User.findOne({ clerkId: userId });
+    let user = await User.findOne({ clerkId: userId });
 
     if (!user) {
-      res.status(404).json({ message: "User profile is not synced yet" });
-      return;
+      const clerkUser = await clerkClient.users.getUser(userId);
+      const profile = getClerkUserProfile(clerkUser);
+
+      user = await User.findOneAndUpdate(
+        { clerkId: userId },
+        { $setOnInsert: profile },
+        { new: true, upsert: true, setDefaultsOnInsert: true },
+      );
     }
 
     req.user = user;

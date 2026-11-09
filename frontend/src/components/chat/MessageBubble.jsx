@@ -1,5 +1,6 @@
 import { withTransform } from "../../lib/imagekit";
 import { MessageVideo } from "./MessageVideo";
+import { MessageMediaDownload } from "./MessageMediaDownload";
 
 // Compress + size images for the bubble (q-auto works for images; f-auto picks WebP/AVIF).
 const IMAGE_TRANSFORM = "q-auto,w-640,f-auto";
@@ -19,13 +20,21 @@ export function MessageBubble({ message }) {
         }`}
       >
         {hasImage ? (
-          <img
-            src={withTransform(message.imageUrl, IMAGE_TRANSFORM)}
-            alt=""
-            className="mb-1.5 max-h-40 max-w-full rounded-lg object-cover sm:max-h-52 sm:rounded-xl"
-          />
+          <>
+            <img
+              src={withTransform(message.imageUrl, IMAGE_TRANSFORM)}
+              alt=""
+              className="mb-1.5 max-h-40 max-w-full rounded-lg object-cover sm:max-h-52 sm:rounded-xl"
+            />
+            <MessageMediaDownload messageId={message.id} type="image" />
+          </>
         ) : null}
-        {hasVideo ? <MessageVideo src={message.videoUrl} /> : null}
+        {hasVideo ? (
+          <>
+            <MessageVideo src={message.videoUrl} />
+            <MessageMediaDownload messageId={message.id} type="video" />
+          </>
+        ) : null}
         {message.text ? (
           <p className="whitespace-pre-wrap wrap-break-word">{message.text}</p>
         ) : null}

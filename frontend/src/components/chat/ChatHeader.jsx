@@ -1,5 +1,5 @@
 import { Avatar, Button } from "@heroui/react";
-import { ChevronLeftIcon, Volume2Icon, VolumeXIcon, XIcon } from "lucide-react";
+import { ChevronLeftIcon, Trash2Icon, Volume2Icon, VolumeXIcon, XIcon } from "lucide-react";
 import { AppLogo } from "../AppLogo";
 import { AvatarWithOnlineIndicator } from "./AvatarWithOnlineIndicator";
 
@@ -15,8 +15,18 @@ export function ChatHeader() {
   const isSoundEnabled = useChatStore((state) => state.isSoundEnabled);
   const setActiveConversationId = useChatStore((state) => state.setActiveConversationId);
   const setSoundEnabled = useChatStore((state) => state.setSoundEnabled);
+  const deleteConversation = useChatStore((state) => state.deleteConversation);
+  const isDeletingConversation = useChatStore((state) => state.isDeletingConversation);
 
-  const { activeConversation, isLargeScreen } = useSelectedConversation();
+  const { activeConversation, activeConversationId, isLargeScreen } = useSelectedConversation();
+
+  const handleDeleteConversation = () => {
+    if (!activeConversationId) return;
+    const confirmed = window.confirm(
+      "Delete this chat for you? The other person will still have their messages.",
+    );
+    if (confirmed) deleteConversation(activeConversationId);
+  };
 
   return (
     <header className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-1.5 py-1.5 sm:gap-2 sm:px-2 sm:py-2">
@@ -75,6 +85,21 @@ export function ChatHeader() {
         </div>
 
         <ThemeToggle />
+
+        {activeConversation ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            isIconOnly
+            isDisabled={isDeletingConversation}
+            className="shrink-0"
+            aria-label="Delete chat for me"
+            title="Delete chat for me"
+            onPress={handleDeleteConversation}
+          >
+            <Trash2Icon className="size-5" strokeWidth={2} aria-hidden />
+          </Button>
+        ) : null}
 
         <Button
           variant="ghost"

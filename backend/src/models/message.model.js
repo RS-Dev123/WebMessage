@@ -20,6 +20,10 @@ const messageSchema = new mongoose.Schema({
     video:{
         type: String,
     },
+    deletedFor: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    }],
 },{timestamps: true});
 
 const Message = mongoose.model('Message', messageSchema);
