@@ -10,13 +10,17 @@ export const useChatStore = create(
     (set, get) => ({
       users: [],
       userSearchResult: null,
-      followRequests: [],
+      followers: [],
+      following: [],
+      statuses: [],
       conversations: [],
       messages: [],
       selectedUser: null,
       isConversationsLoading: false,
       isUsersLoading: false,
       isSearchingUsers: false,
+      isStatusesLoading: false,
+      isPostingStatus: false,
       isMessagesLoading: false,
       isDeletingConversation: false,
       activeConversationId: null,
@@ -52,55 +56,72 @@ export const useChatStore = create(
         }
       },
 
-      getFollowRequests: async () => {
+      getRelationships: async () => {
         set({ isUsersLoading: true });
         try {
-          const res = await axiosInstance.get("/messages/users/follow-requests");
-          set({ followRequests: res.data });
+          const res = await axiosInstance.get("/messages/users/relationships");
+          const relatedUsers = [...res.data.followers, ...res.data.following];
+          set((state) => ({
+            followers: res.data.followers,
+            following: res.data.following,
+            users: [
+              ...relatedUsers,
+              ...state.users.filter(
+                (user) => !relatedUsers.some((relatedUser) => relatedUser._id === user._id),
+              ),
+            ],
+          }));
         } catch (error) {
-          console.error("Error in getFollowRequests:", error);
-          toast.error(error.response?.data?.message || "Failed to load follow requests");
+          console.error("Error in getRelationships:", error);
+          toast.error(error.response?.data?.message || "Failed to load followers");
         } finally {
           set({ isUsersLoading: false });
         }
       },
 
-      sendFollowRequest: async (userId) => {
+      followUser: async (userId) => {
         try {
           await axiosInstance.post(`/messages/users/${userId}/follow`);
-          toast.success("Follow request sent");
-          await Promise.all([get().getFollowRequests(), get().refreshUserSearchResult()]);
+          toast.success("Following");
+          await Promise.all([get().getRelationships(), get().refreshUserSearchResult()]);
           return true;
         } catch (error) {
-          console.error("Error in sendFollowRequest:", error);
-          toast.error(error.response?.data?.message || "Failed to send follow request");
+          console.error("Error in followUser:", error);
+          toast.error(error.response?.data?.message || "Failed to follow user");
           return false;
         }
       },
 
-      acceptFollowRequest: async (userId) => {
+      getStatuses: async () => {
+        set({ isStatusesLoading: true });
         try {
-          await axiosInstance.post(`/messages/users/${userId}/follow/accept`);
-          toast.success("Follow request accepted");
-          await Promise.all([get().getFollowRequests(), get().refreshUserSearchResult()]);
-          return true;
+          const response = await axiosInstance.get("/messages/statuses");
+          set({ statuses: response.data });
         } catch (error) {
-          console.error("Error in acceptFollowRequest:", error);
-          toast.error(error.response?.data?.message || "Failed to accept follow request");
-          return false;
+          console.error("Error in getStatuses:", error);
+          toast.error(error.response?.data?.message || "Failed to load statuses");
+        } finally {
+          set({ isStatusesLoading: false });
         }
       },
 
-      declineFollowRequest: async (userId) => {
+      createStatus: async ({ text, file }) => {
+        const formData = new FormData();
+        if (text.trim()) formData.append("text", text.trim());
+        if (file) formData.append("media", file);
+
+        set({ isPostingStatus: true });
         try {
-          await axiosInstance.post(`/messages/users/${userId}/follow/decline`);
-          await get().getFollowRequests();
-          toast.success("Follow request declined");
+          await axiosInstance.post("/messages/statuses", formData);
+          toast.success("Status shared for 24 hours");
+          await get().getStatuses();
           return true;
         } catch (error) {
-          console.error("Error in declineFollowRequest:", error);
-          toast.error(error.response?.data?.message || "Failed to decline follow request");
+          console.error("Error in createStatus:", error);
+          toast.error(error.response?.data?.message || "Failed to share status");
           return false;
+        } finally {
+          set({ isPostingStatus: false });
         }
       },
 
@@ -108,7 +129,7 @@ export const useChatStore = create(
         try {
           await axiosInstance.delete(`/messages/users/${userId}/follow`);
           toast.success("Unfollowed user");
-          await get().refreshUserSearchResult();
+          await Promise.all([get().getRelationships(), get().refreshUserSearchResult()]);
           return true;
         } catch (error) {
           console.error("Error in unfollowUser:", error);
@@ -177,7 +198,7 @@ export const useChatStore = create(
               ? { activeConversationId: null, selectedUser: null, messages: [] }
               : {}),
           }));
-          toast.success("Chat deleted");
+          toast.success("Chat history deleted. Your follow relationship is unchanged.");
           return true;
         } catch (error) {
           console.error("Error in deleteConversation:", error);

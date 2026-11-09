@@ -23,7 +23,7 @@ export function ChatHeader() {
   const handleDeleteConversation = () => {
     if (!activeConversationId) return;
     const confirmed = window.confirm(
-      "Delete this chat for you? The other person will still have their messages.",
+      "Delete only your chat history with this person? They keep their chat history, and you will remain in each other's Followers/Following lists.",
     );
     if (confirmed) deleteConversation(activeConversationId);
   };

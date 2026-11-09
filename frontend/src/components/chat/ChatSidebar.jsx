@@ -3,18 +3,19 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useChatStore } from "../../store/useChatStore";
 import { APP_NAME, AppLogo } from "../AppLogo";
 import { UserButton } from "@clerk/react";
+import { useState } from "react";
 
 import { Avatar, Button, SearchField, Tabs } from "@heroui/react";
 import {
   CheckIcon,
-  Clock3Icon,
   CopyIcon,
+  CircleDotIcon,
   MessageSquareIcon,
   UserPlusIcon,
   UsersIcon,
-  XIcon,
 } from "lucide-react";
 import { ConversationRow } from "./ConversationRow";
+import { StatusPanel } from "./StatusPanel";
 import toast from "react-hot-toast";
 
 function mapUserForList(user, onlineUsers) {
@@ -37,14 +38,12 @@ function mapUserForList(user, onlineUsers) {
 function ChatSidebar() {
   const conversations = useChatStore((state) => state.conversations);
   const userSearchResult = useChatStore((state) => state.userSearchResult);
-  const followRequests = useChatStore((state) => state.followRequests);
+  const followers = useChatStore((state) => state.followers);
+  const following = useChatStore((state) => state.following);
   const isSearchingUsers = useChatStore((state) => state.isSearchingUsers);
-  const isUsersLoading = useChatStore((state) => state.isUsersLoading);
   const searchUser = useChatStore((state) => state.searchUser);
   const clearUserSearch = useChatStore((state) => state.clearUserSearch);
-  const sendFollowRequest = useChatStore((state) => state.sendFollowRequest);
-  const acceptFollowRequest = useChatStore((state) => state.acceptFollowRequest);
-  const declineFollowRequest = useChatStore((state) => state.declineFollowRequest);
+  const followUser = useChatStore((state) => state.followUser);
   const unfollowUser = useChatStore((state) => state.unfollowUser);
 
   const searchQuery = useChatStore((state) => state.searchQuery);
@@ -52,6 +51,7 @@ function ChatSidebar() {
 
   const sidebarTab = useChatStore((state) => state.sidebarTab);
   const setSidebarTab = useChatStore((state) => state.setSidebarTab);
+  const [peopleSection, setPeopleSection] = useState("followers");
 
   const setActiveConversationId = useChatStore((state) => state.setActiveConversationId);
 
@@ -76,7 +76,7 @@ function ChatSidebar() {
 
   const handleUserSearch = (event) => {
     event.preventDefault();
-    if (sidebarTab === "users") searchUser(searchQuery);
+    if (sidebarTab === "people" && peopleSection === "find") searchUser(searchQuery);
   };
 
   const handleCopyUserId = async () => {
@@ -135,55 +135,66 @@ function ChatSidebar() {
         variant="secondary"
         className="flex flex-1 flex-col overflow-y-auto"
       >
-        <form className="shrink-0 border-b border-border px-3 pb-2 pt-2" onSubmit={handleUserSearch}>
-          <SearchField
-            fullWidth
-            variant="secondary"
-            className="w-full"
-            value={searchQuery}
-            onChange={(value) => {
-              setSearchQuery(value);
-              if (sidebarTab === "users" && !value) clearUserSearch();
-            }}
+        {sidebarTab === "chats" || (sidebarTab === "people" && peopleSection === "find") ? (
+          <form
+            className="shrink-0 border-b border-border px-3 pb-2 pt-2"
+            onSubmit={handleUserSearch}
           >
-            <SearchField.Group className="rounded-xl">
-              <SearchField.SearchIcon />
-              <SearchField.Input
-                placeholder={sidebarTab === "users" ? "Search by exact user ID" : "Search chats"}
-              />
-              {searchQuery ? (
-                <SearchField.ClearButton
-                  onPress={() => {
-                    setSearchQuery("");
-                    if (sidebarTab === "users") clearUserSearch();
-                  }}
-                />
-              ) : null}
-            </SearchField.Group>
-          </SearchField>
-          {sidebarTab === "users" ? (
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
+            <SearchField
               fullWidth
-              className="mt-2"
-              isDisabled={!searchQuery.trim() || isSearchingUsers}
+              variant="secondary"
+              className="w-full"
+              value={searchQuery}
+              onChange={(value) => {
+                setSearchQuery(value);
+                if (sidebarTab === "people" && !value) clearUserSearch();
+              }}
             >
-              {isSearchingUsers ? "Searching..." : "Find user"}
-            </Button>
-          ) : null}
-        </form>
+              <SearchField.Group className="rounded-xl">
+                <SearchField.SearchIcon />
+                <SearchField.Input
+                  placeholder={
+                    sidebarTab === "people" ? "Search by exact user ID" : "Search chats"
+                  }
+                />
+                {searchQuery ? (
+                  <SearchField.ClearButton
+                    onPress={() => {
+                      setSearchQuery("");
+                      if (sidebarTab === "people") clearUserSearch();
+                    }}
+                  />
+                ) : null}
+              </SearchField.Group>
+            </SearchField>
+            {sidebarTab === "people" && peopleSection === "find" ? (
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                fullWidth
+                className="mt-2"
+                isDisabled={!searchQuery.trim() || isSearchingUsers}
+              >
+                {isSearchingUsers ? "Searching..." : "Find user"}
+              </Button>
+            ) : null}
+          </form>
+        ) : null}
 
         <Tabs.ListContainer className="shrink-0 border-b border-border px-2 pb-2 pt-1">
           <Tabs.List className="w-full gap-0.5">
-            <Tabs.Tab id="chats" className="flex-1 justify-center gap-1.5">
+            <Tabs.Tab id="chats" className="flex-1 justify-center gap-1">
               <MessageSquareIcon className="size-3.5 opacity-80" aria-hidden />
               Chats
             </Tabs.Tab>
-            <Tabs.Tab id="users" className="flex-1 justify-center gap-1.5">
+            <Tabs.Tab id="people" className="flex-1 justify-center gap-1">
               <UsersIcon className="size-3.5 opacity-80" aria-hidden />
-              Users
+              People
+            </Tabs.Tab>
+            <Tabs.Tab id="status" className="flex-1 justify-center gap-1">
+              <CircleDotIcon className="size-3.5 opacity-80" aria-hidden />
+              Status
             </Tabs.Tab>
           </Tabs.List>
         </Tabs.ListContainer>
@@ -208,94 +219,138 @@ function ChatSidebar() {
           )}
         </Tabs.Panel>
 
-        <Tabs.Panel id="users" className="flex-1 overflow-x-hidden overflow-y-auto outline-none">
-          {followRequests.length > 0 ? (
-            <section className="border-b border-border px-3 py-3">
-              <h2 className="mb-2 text-sm font-semibold">Follow requests</h2>
-              <div className="space-y-2">
-                {followRequests.map((request) => (
-                  <div key={request._id} className="flex items-center gap-2">
-                    <Avatar className="size-9 shrink-0">
-                      <Avatar.Image alt={request.fullName} src={request.profilePic} />
-                      <Avatar.Fallback>{getInitials(request.fullName)}</Avatar.Fallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{request.fullName}</p>
-                      <p className="truncate text-xs text-muted">{request.publicId}</p>
-                    </div>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      isDisabled={isUsersLoading}
-                      aria-label={`Accept follow request from ${request.fullName}`}
-                      onPress={() => acceptFollowRequest(request._id)}
-                    >
+        <Tabs.Panel id="people" className="flex-1 overflow-x-hidden overflow-y-auto outline-none">
+          <div className="flex border-b border-border p-2">
+            <Button
+              variant={peopleSection === "followers" ? "primary" : "ghost"}
+              size="sm"
+              className="flex-1"
+              onPress={() => setPeopleSection("followers")}
+            >
+              Followers ({followers.length})
+            </Button>
+            <Button
+              variant={peopleSection === "following" ? "primary" : "ghost"}
+              size="sm"
+              className="flex-1"
+              onPress={() => setPeopleSection("following")}
+            >
+              Following ({following.length})
+            </Button>
+            <Button
+              variant={peopleSection === "find" ? "primary" : "ghost"}
+              size="sm"
+              className="flex-1"
+              onPress={() => setPeopleSection("find")}
+            >
+              Find
+            </Button>
+          </div>
+
+          {peopleSection === "find" ? (
+            !userResult ? (
+              <p className="px-4 py-6 text-center text-sm text-muted">
+                Search for someone using their exact user ID. Your ID is {ownPublicId || "Unavailable"}.
+              </p>
+            ) : (
+              <div className="flex items-center gap-2 border-b border-border px-3 py-3">
+                <Avatar className="size-11 shrink-0">
+                  <Avatar.Image alt={userResult.name} src={userResult.avatarUrl} />
+                  <Avatar.Fallback>{userResult.initials}</Avatar.Fallback>
+                </Avatar>
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => setActiveConversationId(userResult.id)}
+                >
+                  <p className="truncate text-sm font-semibold">{userResult.name}</p>
+                  <p className="truncate text-xs text-muted">{userSearchResult.publicId}</p>
+                </button>
+                <Button
+                  variant={userSearchResult.followStatus === "following" ? "secondary" : "primary"}
+                  size="sm"
+                  onPress={() =>
+                    userSearchResult.followStatus === "following"
+                      ? unfollowUser(userResult.id)
+                      : followUser(userResult.id)
+                  }
+                >
+                  {userSearchResult.followStatus === "following" ? (
+                    <>
                       <CheckIcon className="size-4" aria-hidden />
-                      Accept
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      isIconOnly
-                      isDisabled={isUsersLoading}
-                      aria-label={`Decline follow request from ${request.fullName}`}
-                      onPress={() => declineFollowRequest(request._id)}
+                      Following
+                    </>
+                  ) : (
+                    <>
+                      <UserPlusIcon className="size-4" aria-hidden />
+                      {userSearchResult.followStatus === "followBack" ? "Follow back" : "Follow"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            )
+          ) : (
+            (() => {
+              const people = peopleSection === "followers" ? followers : following;
+              if (!people.length) {
+                return (
+                  <p className="px-4 py-6 text-center text-sm text-muted">
+                    {peopleSection === "followers"
+                      ? "No followers yet."
+                      : "You are not following anyone yet."}
+                  </p>
+                );
+              }
+
+              return people.map((person) => {
+                const user = mapUserForList(person, onlineUsers);
+                const isFollowing = person.followStatus === "following";
+
+                return (
+                  <div
+                    key={person._id}
+                    className="flex items-center gap-2 border-b border-border px-3 py-2"
+                  >
+                    <Avatar className="size-10 shrink-0">
+                      <Avatar.Image alt={person.fullName} src={person.profilePic} />
+                      <Avatar.Fallback>{user.initials}</Avatar.Fallback>
+                    </Avatar>
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => setActiveConversationId(person._id)}
                     >
-                      <XIcon className="size-4" aria-hidden />
+                      <p className="truncate text-sm font-semibold">{person.fullName}</p>
+                      <p className="truncate text-xs text-muted">{person.publicId}</p>
+                    </button>
+                    <Button
+                      variant={isFollowing ? "secondary" : "primary"}
+                      size="sm"
+                      onPress={() =>
+                        isFollowing ? unfollowUser(person._id) : followUser(person._id)
+                      }
+                    >
+                      {isFollowing ? (
+                        <>
+                          <CheckIcon className="size-4" aria-hidden />
+                          Following
+                        </>
+                      ) : (
+                        <>
+                          <UserPlusIcon className="size-4" aria-hidden />
+                          Follow back
+                        </>
+                      )}
                     </Button>
                   </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {!userResult ? (
-            <p className="px-4 py-6 text-center text-sm text-muted">
-              Search for someone using their exact user ID. Your ID is {ownPublicId || "Unavailable"}.
-            </p>
-          ) : (
-            <div className="flex items-center gap-2 border-b border-border px-3 py-3">
-              <Avatar className="size-11 shrink-0">
-                <Avatar.Image alt={userResult.name} src={userResult.avatarUrl} />
-                <Avatar.Fallback>{userResult.initials}</Avatar.Fallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{userResult.name}</p>
-                <p className="truncate text-xs text-muted">{userSearchResult.publicId}</p>
-              </div>
-              {userSearchResult.followStatus === "following" ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => unfollowUser(userResult.id)}
-                >
-                  <CheckIcon className="size-4" aria-hidden />
-                  Following
-                </Button>
-              ) : userSearchResult.followStatus === "requested" ? (
-                <Button variant="secondary" size="sm" isDisabled>
-                  <Clock3Icon className="size-4" aria-hidden />
-                  Requested
-                </Button>
-              ) : (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onPress={() => sendFollowRequest(userResult.id)}
-                >
-                  <UserPlusIcon className="size-4" aria-hidden />
-                  {userSearchResult.followStatus === "followBack" ? "Follow back" : "Follow"}
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onPress={() => setActiveConversationId(userResult.id)}
-              >
-                Message
-              </Button>
-            </div>
+                );
+              });
+            })()
           )}
+        </Tabs.Panel>
+
+        <Tabs.Panel id="status" className="flex-1 overflow-x-hidden overflow-y-auto outline-none">
+          <StatusPanel />
         </Tabs.Panel>
       </Tabs>
     </aside>

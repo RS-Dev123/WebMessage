@@ -1,15 +1,15 @@
 import express from "express";
 import {
-  acceptFollowRequest,
+  createStatus,
   deleteConversation,
-  declineFollowRequest,
   downloadMessageMedia,
   getConversationsForSidebar,
-  getFollowRequests,
+  getRelationships,
   getMessages,
   getUserByPublicId,
+  getStatuses,
+  followUser,
   sendMessage,
-  sendFollowRequest,
   unfollowUser,
 } from "../controllers/message.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
@@ -22,12 +22,12 @@ router.use(protectRoute);
 router.get("/users", (req, res) => {
   res.status(404).json({ message: "Use an exact user ID to find someone" });
 });
-router.get("/users/follow-requests", getFollowRequests);
+router.get("/users/relationships", getRelationships);
 router.get("/users/:publicId", getUserByPublicId);
-router.post("/users/:id/follow", sendFollowRequest);
-router.post("/users/:id/follow/accept", acceptFollowRequest);
-router.post("/users/:id/follow/decline", declineFollowRequest);
+router.post("/users/:id/follow", followUser);
 router.delete("/users/:id/follow", unfollowUser);
+router.get("/statuses", getStatuses);
+router.post("/statuses", upload.single("media"), createStatus);
 router.get("/conversations", getConversationsForSidebar);
 router.delete("/conversations/:id", deleteConversation);
 router.get("/media/:id/:type", downloadMessageMedia);

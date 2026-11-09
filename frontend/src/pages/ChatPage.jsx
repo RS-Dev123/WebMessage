@@ -12,7 +12,8 @@ function ChatPage() {
 
   const getConversations = useChatStore((state) => state.getConversations);
   const getMessages = useChatStore((state) => state.getMessages);
-  const getFollowRequests = useChatStore((state) => state.getFollowRequests);
+  const getRelationships = useChatStore((state) => state.getRelationships);
+  const getStatuses = useChatStore((state) => state.getStatuses);
   const subscribeToMessages = useChatStore((state) => state.subscribeToMessages);
   const unsubscribeFromMessages = useChatStore((state) => state.unsubscribeFromMessages);
 
@@ -20,8 +21,9 @@ function ChatPage() {
 
   useEffect(() => {
     getConversations();
-    getFollowRequests();
-  }, [getConversations, getFollowRequests]);
+    getRelationships();
+    getStatuses();
+  }, [getConversations, getRelationships, getStatuses]);
 
   useEffect(() => {
     if (!activeConversationId) return;

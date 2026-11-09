@@ -1,17 +1,35 @@
 import { Readable } from "node:stream";
 import mongoose from "mongoose";
+import { clerkClient } from "@clerk/express";
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
-import { hasImageKitConfig, uploadChatMedia } from "../lib/imagekit.js";
+import { hasImageKitConfig, uploadChatMedia, uploadStatusMedia } from "../lib/imagekit.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
+import Status from "../models/status.model.js";
+import { getClerkUserProfile } from "../lib/clerk-user.js";
+
+async function refreshPlaceholderProfile(profile) {
+  if (profile.fullName !== "New user") return profile;
+
+  const clerkUser = await clerkClient.users.getUser(profile.clerkId);
+  const clerkProfile = getClerkUserProfile(clerkUser);
+  const refreshed = await User.findOneAndUpdate(
+    { _id: profile._id, fullName: "New user" },
+    { $set: { fullName: clerkProfile.fullName, profilePic: clerkProfile.profilePic } },
+    { returnDocument: "after" },
+  ).select("_id publicId fullName profilePic followers");
+
+  return (
+    refreshed ??
+    User.findById(profile._id).select("_id publicId fullName profilePic followers")
+  );
+}
 
 function getFollowStatus(viewer, profile) {
-  const viewerId = String(viewer._id);
   const profileId = String(profile._id);
 
   if (viewer.following?.some((id) => String(id) === profileId)) return "following";
-  if (viewer.sentFollowRequests?.some((id) => String(id) === profileId)) return "requested";
-  if (profile.following?.some((id) => String(id) === viewerId)) return "followBack";
+  if (profile.followers?.some((id) => String(id) === String(viewer._id))) return "followBack";
   return "follow";
 }
 
@@ -20,7 +38,7 @@ function toPublicProfile(profile, followStatus) {
     _id: profile._id,
     publicId: profile.publicId,
     fullName: profile.fullName,
-    profilePic: profile.profilePic,
+    profilePic: refreshedById.get(String(profile._id))?.profilePic ?? profile.profilePic,
     followStatus,
   };
 }
@@ -28,17 +46,17 @@ function toPublicProfile(profile, followStatus) {
 export async function getUserByPublicId(req, res) {
   try {
     const publicId = req.params.publicId.trim().toUpperCase();
-    const profile = await User.findOne({ publicId }).select(
-      "_id publicId fullName profilePic following",
+    let profile = await User.findOne({ publicId }).select(
+      "_id clerkId publicId fullName profilePic followers",
     );
 
     if (!profile || String(profile._id) === String(req.user._id)) {
       return res.status(404).json({ message: "No other account found with that user ID" });
     }
 
-    const viewer = await User.findById(req.user._id).select(
-      "following sentFollowRequests",
-    );
+    profile = await refreshPlaceholderProfile(profile);
+
+    const viewer = await User.findById(req.user._id).select("following");
     if (!viewer) return res.status(404).json({ message: "Your profile was not found" });
 
     res.status(200).json(toPublicProfile(profile, getFollowStatus(viewer, profile)));
@@ -48,109 +66,129 @@ export async function getUserByPublicId(req, res) {
   }
 }
 
-export async function getFollowRequests(req, res) {
+export async function getRelationships(req, res) {
   try {
-    const user = await User.findById(req.user._id).select("followRequests");
-    const requests = await User.find({ _id: { $in: user.followRequests } }).select(
-      "_id publicId fullName profilePic",
+    const user = await User.findById(req.user._id).select("following followers");
+    if (!user) return res.status(404).json({ message: "Your profile was not found" });
+
+    const followingIds = user.following.map(String);
+    const followerIds = user.followers.map(String);
+    const [following, followers] = await Promise.all([
+      User.find({ _id: { $in: followingIds } }).select(
+        "_id clerkId publicId fullName profilePic",
+      ),
+      User.find({ _id: { $in: followerIds } }).select(
+        "_id clerkId publicId fullName profilePic",
+      ),
+    ]);
+
+    const refreshedProfiles = await Promise.all(
+      [...following, ...followers].map(refreshPlaceholderProfile),
     );
-    res.status(200).json(requests);
+    const refreshedById = new Map(
+      refreshedProfiles.filter(Boolean).map((profile) => [String(profile._id), profile]),
+    );
+    const followedIds = new Set(followingIds);
+    const mapProfile = (profile) => ({
+      _id: profile._id,
+      publicId: profile.publicId,
+      fullName: refreshedById.get(String(profile._id))?.fullName ?? profile.fullName,
+      profilePic: profile.profilePic,
+      followStatus: followedIds.has(String(profile._id)) ? "following" : "follow",
+    });
+
+    res.status(200).json({
+      followers: followers.map(mapProfile),
+      following: following.map(mapProfile),
+    });
   } catch (error) {
-    console.error("Error in getFollowRequests:", error.message);
+    console.error("Error in getRelationships:", error.message);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
-export async function sendFollowRequest(req, res) {
+export async function followUser(req, res) {
   try {
     const { id: targetId } = req.params;
-    const requesterId = req.user._id;
-    if (!mongoose.isValidObjectId(targetId) || String(targetId) === String(requesterId)) {
+    const userId = req.user._id;
+    if (!mongoose.isValidObjectId(targetId) || String(targetId) === String(userId)) {
       return res.status(400).json({ message: "Invalid user" });
     }
 
-    const [target, requester] = await Promise.all([
-      User.findById(targetId).select("_id following followRequests"),
-      User.findById(requesterId).select("_id following sentFollowRequests"),
-    ]);
+    const target = await User.findById(targetId).select("_id");
     if (!target) return res.status(404).json({ message: "User not found" });
 
-    if (requester.following.some((id) => String(id) === String(targetId))) {
-      return res.status(409).json({ message: "You already follow this user" });
-    }
-    if (target.followRequests.some((id) => String(id) === String(requesterId))) {
-      return res.status(409).json({ message: "Follow request already sent" });
-    }
-
     await Promise.all([
-      User.updateOne({ _id: targetId }, { $addToSet: { followRequests: requesterId } }),
-      User.updateOne({ _id: requesterId }, { $addToSet: { sentFollowRequests: targetId } }),
+      User.updateOne({ _id: targetId }, { $addToSet: { followers: userId } }),
+      User.updateOne({ _id: userId }, { $addToSet: { following: targetId } }),
     ]);
 
-    res.status(200).json({ message: "Follow request sent" });
+    res.status(200).json({ message: "User followed" });
   } catch (error) {
-    console.error("Error in sendFollowRequest:", error.message);
+    console.error("Error in followUser:", error.message);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
-export async function acceptFollowRequest(req, res) {
+export async function getStatuses(req, res) {
   try {
-    const { id: requesterId } = req.params;
-    const userId = req.user._id;
-    if (!mongoose.isValidObjectId(requesterId) || String(requesterId) === String(userId)) {
-      return res.status(400).json({ message: "Invalid user" });
-    }
+    const user = await User.findById(req.user._id).select("following followers");
+    if (!user) return res.status(404).json({ message: "Your profile was not found" });
 
-    const accepted = await User.findOneAndUpdate(
-      { _id: userId, followRequests: requesterId },
-      {
-        $pull: { followRequests: requesterId },
-        $addToSet: { followers: requesterId },
-      },
-      { new: true },
-    );
-    if (!accepted) return res.status(404).json({ message: "Follow request not found" });
+    const visibleUserIds = new Set([
+      String(user._id),
+      ...user.following.map(String),
+      ...user.followers.map(String),
+    ]);
 
-    await User.updateOne(
-      { _id: requesterId },
-      {
-        $pull: { sentFollowRequests: userId },
-        $addToSet: { following: userId },
-      },
-    );
+    const statuses = await Status.find({
+      userId: { $in: [...visibleUserIds] },
+      expiresAt: { $gt: new Date() },
+    })
+      .populate("userId", "publicId fullName profilePic")
+      .sort({ createdAt: -1 })
+      .lean();
 
-    res.status(200).json({ message: "Follow request accepted" });
+    res.status(200).json(statuses);
   } catch (error) {
-    console.error("Error in acceptFollowRequest:", error.message);
+    console.error("Error in getStatuses:", error.message);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
-export async function declineFollowRequest(req, res) {
+export async function createStatus(req, res) {
   try {
-    const { id: requesterId } = req.params;
-    const userId = req.user._id;
-    if (!mongoose.isValidObjectId(requesterId) || String(requesterId) === String(userId)) {
-      return res.status(400).json({ message: "Invalid user" });
+    const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
+    if (text.length > 500) {
+      return res.status(400).json({ message: "Status text must be 500 characters or fewer" });
+    }
+    if (!text && !req.file) {
+      return res.status(400).json({ message: "Add text, a photo, or a video to your status" });
     }
 
-    const declined = await User.updateOne(
-      { _id: userId, followRequests: requesterId },
-      { $pull: { followRequests: requesterId } },
-    );
-    if (!declined.matchedCount) {
-      return res.status(404).json({ message: "Follow request not found" });
+    let image;
+    let video;
+    if (req.file) {
+      if (!hasImageKitConfig()) {
+        return res.status(500).json({ message: "Media upload is not configured" });
+      }
+
+      const url = await uploadStatusMedia(req.file);
+      if (req.file.mimetype.startsWith("video/")) video = url;
+      else image = url;
     }
 
-    await User.updateOne(
-      { _id: requesterId },
-      { $pull: { sentFollowRequests: userId } },
-    );
+    const status = await Status.create({
+      userId: req.user._id,
+      text,
+      image,
+      video,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
 
-    res.status(200).json({ message: "Follow request declined" });
+    res.status(201).json(status);
   } catch (error) {
-    console.error("Error in declineFollowRequest:", error.message);
+    console.error("Error in createStatus:", error.message);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -166,11 +204,11 @@ export async function unfollowUser(req, res) {
     await Promise.all([
       User.updateOne(
         { _id: userId },
-        { $pull: { following: targetId, sentFollowRequests: targetId } },
+        { $pull: { following: targetId } },
       ),
       User.updateOne(
         { _id: targetId },
-        { $pull: { followers: userId, followRequests: userId } },
+        { $pull: { followers: userId } },
       ),
     ]);
 

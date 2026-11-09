@@ -14,16 +14,19 @@ function createFileName(originalName = "upload") {
   return `chat-${Date.now()}-${safeName}`;
 }
 
-async function uploadChatMedia(file) {
-  const fileName = createFileName(file.originalname);
+async function uploadMedia(file, folder, prefix) {
+  const fileName = createFileName(file.originalname).replace(/^chat-/, `${prefix}-`);
 
   const result = await imagekit.files.upload({
     file: await toFile(file.buffer, fileName, { type: file.mimetype }),
     fileName,
-    folder: "/chat",
+    folder,
   });
 
   return result.url;
 }
 
-export { uploadChatMedia, hasImageKitConfig };
+const uploadChatMedia = (file) => uploadMedia(file, "/chat", "chat");
+const uploadStatusMedia = (file) => uploadMedia(file, "/status", "status");
+
+export { uploadChatMedia, uploadStatusMedia, hasImageKitConfig };

@@ -34,14 +34,6 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
     }],
-    followRequests: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-    }],
-    sentFollowRequests: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-    }],
 },{timestamps: true});
 
 userSchema.index(

@@ -50,6 +50,44 @@ export async function connectDB() {
            );
        }
 
+       const usersWithPendingRequests = await User.collection
+           .find(
+               { followRequests: { $exists: true, $ne: [] } },
+               { projection: { _id: 1, followRequests: 1 } },
+           )
+           .toArray();
+       const followMigrations = [];
+
+       for (const recipient of usersWithPendingRequests) {
+           for (const requesterId of recipient.followRequests ?? []) {
+               if (String(requesterId) === String(recipient._id)) continue;
+
+               followMigrations.push(
+                   {
+                       updateOne: {
+                           filter: { _id: recipient._id },
+                           update: { $addToSet: { followers: requesterId } },
+                       },
+                   },
+                   {
+                       updateOne: {
+                           filter: { _id: requesterId },
+                           update: { $addToSet: { following: recipient._id } },
+                       },
+                   },
+               );
+           }
+       }
+
+       if (followMigrations.length > 0) {
+           await User.collection.bulkWrite(followMigrations, { ordered: false });
+       }
+
+       await User.collection.updateMany(
+           {},
+           { $unset: { followRequests: "", sentFollowRequests: "" } },
+       );
+
        console.log("MonfoDB connected:", conn.connection.host);
     } catch (error) {
         console.error("MongoDB connection error:", error.message);
