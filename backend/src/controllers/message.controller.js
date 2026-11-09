@@ -38,7 +38,7 @@ function toPublicProfile(profile, followStatus) {
     _id: profile._id,
     publicId: profile.publicId,
     fullName: profile.fullName,
-    profilePic: refreshedById.get(String(profile._id))?.profilePic ?? profile.profilePic,
+    profilePic: profile.profilePic,
     followStatus,
   };
 }
