@@ -13,10 +13,10 @@ export function MessageBubble({ message }) {
   return (
     <div className={`flex w-full ${isOwnMessage ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[min(90%,28rem)] rounded-2xl px-3 py-2 text-[15px] leading-snug sm:max-w-[min(75%,28rem)] sm:px-3.5 ${
+        className={`max-w-[min(90%,32rem)] rounded-2xl px-3.5 py-2.5 text-[15px] leading-snug shadow-sm sm:max-w-[min(75%,32rem)] sm:px-4 ${
           isOwnMessage
-            ? "rounded-br-md bg-accent text-accent-foreground"
-            : "rounded-bl-md bg-surface"
+            ? "rounded-br-md bg-linear-to-br from-violet-600 to-indigo-600 text-white shadow-violet-500/15"
+            : "rounded-bl-md border border-violet-950/5 bg-white/90 dark:border-white/10 dark:bg-white/[0.07]"
         }`}
       >
         {hasImage ? (
@@ -40,7 +40,7 @@ export function MessageBubble({ message }) {
         ) : null}
         <p
           className={`mt-1 text-[11px] tabular-nums ${
-            isOwnMessage ? "text-accent-foreground/75" : "text-muted"
+            isOwnMessage ? "text-white/70" : "text-muted"
           }`}
         >
           {message.time}

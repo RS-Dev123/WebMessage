@@ -14,7 +14,7 @@ export function MessageList() {
       {activeConversation ? (
         <div
           ref={messagesScrollRef}
-          className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-2 py-3 sm:px-3 sm:py-4"
+          className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.07),transparent_50%)] px-3 py-4 sm:px-6 sm:py-6"
         >
           <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-wide text-muted">
             Today

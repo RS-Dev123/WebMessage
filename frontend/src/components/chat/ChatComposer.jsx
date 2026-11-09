@@ -44,7 +44,7 @@ export function ChatComposer() {
   };
 
   return (
-    <footer className="shrink-0 border-t border-border px-1.5 pb-2 pt-2 sm:px-2">
+    <footer className="shrink-0 border-t border-violet-950/8 bg-white/45 px-2 pb-3 pt-3 dark:border-white/10 dark:bg-white/[0.02] sm:px-4 sm:pb-4">
       {isSendingMedia ? (
         <div className="mx-auto mb-2 flex max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted">
           <LoaderIcon
@@ -78,7 +78,7 @@ export function ChatComposer() {
         <TextArea
           fullWidth
           variant="secondary"
-          placeholder="iMessage"
+          placeholder="Type a message..."
           rows={1}
           value={composerText}
           onChange={handleComposerTextChange}
@@ -88,7 +88,7 @@ export function ChatComposer() {
               handleSend();
             }
           }}
-          className="flex-1 rounded-full"
+          className="flex-1 rounded-2xl border-0 bg-slate-100/85 shadow-inner dark:bg-white/[0.06]"
         />
 
         <Button variant="primary" isIconOnly isDisabled={!composerText.trim()} onPress={handleSend}>

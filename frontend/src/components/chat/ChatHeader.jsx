@@ -29,7 +29,7 @@ export function ChatHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-1.5 py-1.5 sm:gap-2 sm:px-2 sm:py-2">
+    <header className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center gap-1 border-b border-violet-950/8 bg-white/55 px-2 py-2 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.025] sm:gap-2 sm:px-4 sm:py-3">
       {activeConversation && !isLargeScreen ? (
         <Button
           variant="ghost"
@@ -45,7 +45,7 @@ export function ChatHeader() {
       {activeConversation ? (
         <>
           <AvatarWithOnlineIndicator isOnline={activeConversation.peer.isOnline ?? true}>
-            <Avatar className="size-9 shrink-0">
+            <Avatar className="size-10 shrink-0 ring-2 ring-violet-100 dark:ring-violet-300/15">
               <Avatar.Image
                 alt={activeConversation.peer.name}
                 src={activeConversation.peer.avatarUrl}
@@ -57,7 +57,7 @@ export function ChatHeader() {
           </AvatarWithOnlineIndicator>
 
           <div className="flex-1 text-center sm:text-left">
-            <p className="truncate text-[15px] font-semibold leading-tight">
+            <p className="truncate text-[15px] font-bold leading-tight">
               {activeConversation.peer.name}
             </p>
             <p className="truncate text-xs text-muted">

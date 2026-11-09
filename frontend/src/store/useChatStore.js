@@ -5,6 +5,24 @@ import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 import toast from "react-hot-toast";
 
+function getRelationshipProfile(state, userId) {
+  const profile = [
+    state.userSearchResult,
+    ...state.followers,
+    ...state.following,
+    ...state.users,
+  ].find((user) => String(user?._id ?? user?.id) === String(userId));
+
+  if (!profile) return null;
+
+  return {
+    ...profile,
+    _id: profile._id ?? profile.id,
+    fullName: profile.fullName ?? profile.name,
+    profilePic: profile.profilePic ?? profile.avatarUrl ?? "",
+  };
+}
+
 export const useChatStore = create(
   persist(
     (set, get) => ({
@@ -80,6 +98,26 @@ export const useChatStore = create(
       },
 
       followUser: async (userId) => {
+        const previousState = get();
+        const profile = getRelationshipProfile(previousState, userId);
+        if (profile) {
+          set((state) => ({
+            following: [
+              { ...profile, followStatus: "following" },
+              ...state.following.filter((user) => String(user._id) !== String(userId)),
+            ],
+            followers: state.followers.map((user) =>
+              String(user._id) === String(userId)
+                ? { ...user, followStatus: "following" }
+                : user,
+            ),
+            userSearchResult:
+              String(state.userSearchResult?._id) === String(userId)
+                ? { ...state.userSearchResult, followStatus: "following" }
+                : state.userSearchResult,
+          }));
+        }
+
         try {
           await axiosInstance.post(`/messages/users/${userId}/follow`);
           toast.success("Following");
@@ -87,6 +125,13 @@ export const useChatStore = create(
           return true;
         } catch (error) {
           console.error("Error in followUser:", error);
+          set({
+            followers: previousState.followers,
+            following: previousState.following,
+            userSearchResult: previousState.userSearchResult,
+          });
+          await get().getRelationships();
+          await get().refreshUserSearchResult();
           toast.error(error.response?.data?.message || "Failed to follow user");
           return false;
         }
@@ -126,6 +171,27 @@ export const useChatStore = create(
       },
 
       unfollowUser: async (userId) => {
+        const previousState = get();
+        set((state) => ({
+          following: state.following.filter((user) => String(user._id) !== String(userId)),
+          followers: state.followers.map((user) =>
+            String(user._id) === String(userId)
+              ? { ...user, followStatus: "followBack" }
+              : user,
+          ),
+          userSearchResult:
+            String(state.userSearchResult?._id) === String(userId)
+              ? {
+                  ...state.userSearchResult,
+                  followStatus: state.followers.some(
+                    (user) => String(user._id) === String(userId),
+                  )
+                    ? "followBack"
+                    : "follow",
+                }
+              : state.userSearchResult,
+        }));
+
         try {
           await axiosInstance.delete(`/messages/users/${userId}/follow`);
           toast.success("Unfollowed user");
@@ -133,6 +199,13 @@ export const useChatStore = create(
           return true;
         } catch (error) {
           console.error("Error in unfollowUser:", error);
+          set({
+            followers: previousState.followers,
+            following: previousState.following,
+            userSearchResult: previousState.userSearchResult,
+          });
+          await get().getRelationships();
+          await get().refreshUserSearchResult();
           toast.error(error.response?.data?.message || "Failed to unfollow user");
           return false;
         }

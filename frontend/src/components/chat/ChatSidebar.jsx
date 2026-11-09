@@ -92,15 +92,15 @@ function ChatSidebar() {
 
   return (
     <aside
-      className={`w-full shrink-0 flex-col overflow-hidden border-r border-border lg:w-72 ${
+      className={`w-full shrink-0 flex-col overflow-hidden border-r border-violet-950/8 bg-white/45 dark:border-white/10 dark:bg-white/[0.02] lg:w-80 ${
         !isLargeScreen && activeConversationId ? "hidden lg:flex" : "flex"
       }`}
     >
-      <div className="shrink-0 border-b border-border px-2 pb-2 pt-2.5 sm:px-3 sm:pt-3">
+      <div className="shrink-0 border-b border-violet-950/8 px-3 pb-3 pt-3 dark:border-white/10 sm:px-4 sm:pt-4">
         <div className="flex items-center gap-2 px-0.5 sm:gap-2.5 sm:px-1">
-          <AppLogo size={32} className="size-8 shrink-0 rounded-[9px] sm:size-8.5" alt="" />
+          <AppLogo size={36} className="size-9 shrink-0 rounded-xl shadow-sm shadow-violet-500/15" alt="" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-bold tracking-tight sm:text-[22px]">{APP_NAME}</p>
+            <p className="truncate text-lg font-bold tracking-tight">{APP_NAME}</p>
             <p className="truncate text-[10px] text-muted">Your ID: {ownPublicId || "Unavailable"}</p>
           </div>
           <Button
@@ -150,7 +150,7 @@ function ChatSidebar() {
                 if (sidebarTab === "people" && !value) clearUserSearch();
               }}
             >
-              <SearchField.Group className="rounded-xl">
+              <SearchField.Group className="rounded-2xl border-0 bg-slate-100/85 shadow-inner dark:bg-white/[0.06]">
                 <SearchField.SearchIcon />
                 <SearchField.Input
                   placeholder={
@@ -182,8 +182,8 @@ function ChatSidebar() {
           </form>
         ) : null}
 
-        <Tabs.ListContainer className="shrink-0 border-b border-border px-2 pb-2 pt-1">
-          <Tabs.List className="w-full gap-0.5">
+        <Tabs.ListContainer className="shrink-0 border-b border-violet-950/8 px-3 pb-2.5 pt-2 dark:border-white/10">
+          <Tabs.List className="w-full gap-1 rounded-2xl bg-slate-100/80 p-1 dark:bg-white/[0.06]">
             <Tabs.Tab id="chats" className="flex-1 justify-center gap-1">
               <MessageSquareIcon className="size-3.5 opacity-80" aria-hidden />
               Chats

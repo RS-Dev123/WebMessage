@@ -6,12 +6,14 @@ export function ConversationRow({ user, selected, onSelect }) {
     <button
       type="button"
       onClick={onSelect}
-      className={`flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left ${
-        selected ? "bg-accent-soft" : ""
+      className={`mx-2 my-1 flex w-[calc(100%-1rem)] items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors ${
+        selected
+          ? "bg-violet-100/90 shadow-sm dark:bg-violet-400/15"
+          : "hover:bg-violet-50/80 dark:hover:bg-white/[0.05]"
       }`}
     >
       <AvatarWithOnlineIndicator isOnline={user.isOnline ?? true}>
-        <Avatar className="size-12 shrink-0">
+        <Avatar className="size-11 shrink-0 ring-2 ring-white dark:ring-white/10">
           <Avatar.Image alt={user.name} src={user.avatarUrl} />
           <Avatar.Fallback className="text-sm font-medium">{user.initials}</Avatar.Fallback>
         </Avatar>

@@ -123,6 +123,9 @@ export async function followUser(req, res) {
       User.updateOne({ _id: userId }, { $addToSet: { following: targetId } }),
     ]);
 
+    const targetSocketId = getReceiverSocketId(String(targetId));
+    if (targetSocketId) io.to(targetSocketId).emit("relationshipsUpdated");
+
     res.status(200).json({ message: "User followed" });
   } catch (error) {
     console.error("Error in followUser:", error.message);
@@ -211,6 +214,9 @@ export async function unfollowUser(req, res) {
         { $pull: { followers: userId } },
       ),
     ]);
+
+    const targetSocketId = getReceiverSocketId(String(targetId));
+    if (targetSocketId) io.to(targetSocketId).emit("relationshipsUpdated");
 
     res.status(200).json({ message: "Unfollowed user" });
   } catch (error) {
